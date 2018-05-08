@@ -21,7 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-var audioContext = null;
 var meter = null;
 var canvasContext = null;
 var WIDTH=500;
@@ -33,12 +32,6 @@ window.onload = function() {
     // grab our canvas
 	canvasContext = document.getElementById( "meter" ).getContext("2d");
 	
-    // monkeypatch Web Audio
-    window.AudioContext = window.AudioContext || window.webkitAudioContext;
-	
-    // grab an audio context
-    audioContext = new AudioContext();
-
     // Attempt to get audio input
     try {
         // monkeypatch getUserMedia
@@ -71,15 +64,30 @@ function didntGetStream() {
     alert('Stream generation failed.');
 }
 
-var mediaStreamSource = null;
+function listenToStream(stream) {
+    var audioContext = new OfflineAudioContext({
+      numberOfChannels: 2,
+      length: 44100 * 1000,
+      sampleRate: 44100,
+    });
 
-function gotStream(stream) {
-    // Create an AudioNode from the stream.
-    mediaStreamSource = audioContext.createMediaStreamSource(stream);
+    var mediaStreamSource = audioContext.createMediaStreamSource(stream);
 
-    // Create a new volume meter and connect it.
+    // Create a new volume meter and connect it (overrides the global one).
     meter = createAudioMeter(audioContext);
     mediaStreamSource.connect(meter);
+
+    // When the audio context is filed, create a new one.
+    audioContext.startRendering().then(function() {
+      listenToStream(stream);
+    });
+}
+
+function gotStream(stream) {
+    // monkeypatch Web Audio
+    window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
+    listenToStream(stream);
 
     // kick off the visual updating
     drawLoop();

@@ -79,6 +79,10 @@ function listenToStream(stream) {
 
     // When the audio context is filed, create a new one.
     audioContext.startRendering().then(function() {
+      // TODO: can the stream leak?
+      mediaStreamSource = null;
+      audioContext = null;
+      meter.shutdown();
       listenToStream(stream);
     });
 }
